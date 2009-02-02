@@ -64,6 +64,7 @@ class Extracter
 
 			if (not @approvedMediaType.include?(File.extname(baseName)))
 				# puts "Notice: The file '#{baseName}' is not of a approved list."
+				next
 			end
 			path = Pathname.new(file)
 
@@ -77,11 +78,21 @@ class Extracter
 		return list
 	end
 
-	def getRawMetaData(fileList)
-		metaDataList = Array.new
+	def getMetaData(fileList)
+		metaDataList = Hash.new
 
-		metaDataList << "/mnt/Angelix/MotionPictures/Movies/1984.avi: RIFF (little-endian) data, AVI, 512 x 384, 29.97 fps, video: DivX 5, audio: MPEG-1 Layer 3 (stereo, 48000 Hz)"
+#		metaDataList << "/mnt/Angelix/MotionPictures/Movies/1984.avi: RIFF (little-endian) data, AVI, 512 x 384, 29.97 fps, video: DivX 5, audio: MPEG-1 Layer 3 (stereo, 48000 Hz)"
 #		metaDataList << "/mnt/Angelix/MotionPictures/Movies/Goya's Ghosts (1 of 2).avi: RIFF (little-endian) data, AVI, 560 x 304, 25.00 fps, video: XviD, audio: Dolby AC3 (6 channels, 48000 Hz)"
+
+		media = fileList[10]
+
+#		fileList.each do |media|
+			#metaDataList[media] = `file "#{media}"`
+			metaDataList[media] = `mplayer -identify -frames 0 "#{media}" | grep ID`
+
+			puts metaDataList[media]
+#		end
+
 		return metaDataList
 	end
 
@@ -128,7 +139,9 @@ extracter = Extracter.new
 #fileList = extracter.getFileList("/home/jonix/Angelix/MotionPictures/Videos")
 fileList = extracter.getFileList("../../Angelix/MotionPictures/Videos/")
 
-#rawList  = extracter.getRawMetaData(fileList)
+rawList  = extracter.getMetaData(fileList)
+
+p rawList
 
 #metadataInstanceList = extracter.parseRawMetaData(rawList)
 
