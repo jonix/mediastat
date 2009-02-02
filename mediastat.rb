@@ -1,6 +1,9 @@
 #!/usr/bin/env ruby
 
 
+require 'find'
+require 'pathname'
+
 # This is just a dumb container for video meta dataType
 # Any of this attributes can be empty
 class MetaData
@@ -32,9 +35,46 @@ end
 
 
 class Extracter
-	def getFileList(grokPattern = "*")
+
+	def initialize()
+		@approvedMediaType = Array.new
+		@approvedMediaType << ".avi"
+		@approvedMediaType << ".mov"
+		@approvedMediaType << ".mpg"
+		@approvedMediaType << ".mpeg"
+		@approvedMediaType << ".divx"
+		@approvedMediaType << ".xvid"
+		@approvedMediaType << ".h264"
+		@approvedMediaType << ".wmv"
+		@approvedMediaType << ".flv"
+	end
+
+	def getFileList(dirPath)
 		list = Array.new
-		list << "1984.avi"
+		Find.find(dirPath) do |file|
+			baseName = File.basename(file)
+
+			if (FileTest.directory?(file))
+				next
+			end
+
+			if baseName =~ /^\./
+				next
+			end
+
+			if (not @approvedMediaType.include?(File.extname(baseName)))
+				# puts "Notice: The file '#{baseName}' is not of a approved list."
+			end
+			path = Pathname.new(file)
+
+			# This gives the real path, an absolute path where symlinks has been fully resolved
+			list <<  path.realpath.to_s
+
+			# This gives you the path
+			#list << file
+		end
+
+		return list
 	end
 
 	def getRawMetaData(fileList)
@@ -85,10 +125,12 @@ end
 
 extracter = Extracter.new
 
-fileList = extracter.getFileList("*.avi")
-rawList  = extracter.getRawMetaData(fileList)
+#fileList = extracter.getFileList("/home/jonix/Angelix/MotionPictures/Videos")
+fileList = extracter.getFileList("../../Angelix/MotionPictures/Videos/")
 
-metadataInstanceList = extracter.parseRawMetaData(rawList)
+#rawList  = extracter.getRawMetaData(fileList)
 
-puts metadataInstanceList
+#metadataInstanceList = extracter.parseRawMetaData(rawList)
+
+#puts metadataInstanceList
 
