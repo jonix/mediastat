@@ -8,14 +8,17 @@ require 'pathname'
 # Any of this attributes can be empty
 class MetaData
 
-    attr_accessor :fileName,        # The file name and path of the movie
-					:dataType,      # Data type (RIFF, endian-ess)
-					:container,     # The container type, mkv, avi, etc
-					:resolution,    # The image and width of the movie
-					:fps,           # How many frames per second, common values might be 23.98, 25.00 or 29.97
-					:videoFormat,   # The format of the video, DivX, Xvid, etc
-					:audioFormat,   # The format of the sound, MP#, AAC, etc
-					:audioSampling  # Audo recording settings, such as stereo, number of channels, khz
+    attr_accessor :fileName,         # The file name
+    				:path,           # The file name and path of the movie
+					:dataType,       # Data type (RIFF, endian-ess)
+					:container,      # The container type, mkv, avi, etc
+					:width,          # The image width of the movie
+					:height,         # The image height of the movie
+					:fps,            # How many frames per second, common values might be 23.98, 25.00 or 29.97
+					:videoFormat,    # The format of the video, DivX, Xvid, etc
+					:audioFormat,    # The format of the sound, MP3, AAC, etc
+					:audioSampling,  # Audo recording settings, such as stereo, number of channels, khz
+					:runtime         # The number of minutes the movie is
 
 
 	def to_s
@@ -23,7 +26,8 @@ class MetaData
 		info << "File name:      #{@fileName}\n"
 		info << "Data type:      #{@dataType}\n"
 		info << "Container:      #{@container}\n"
-		info << "Resolution:     #{@resolution}\n"
+		info << "Width:          #{@width}\n"
+		info << "Height:         #{@height}\n"
 		info << "Frames/sec:     #{@fps}\n"
 		info << "Video format:   #{@videoFormat}\n"
 		info << "Audio format:   #{@audioFormat}\n"
@@ -79,52 +83,67 @@ class Extracter
 	end
 
 	def getMetaData(fileList)
-		metaDataList = Hash.new
+		rawMetaDataList = Hash.new
 
-#		metaDataList << "/mnt/Angelix/MotionPictures/Movies/1984.avi: RIFF (little-endian) data, AVI, 512 x 384, 29.97 fps, video: DivX 5, audio: MPEG-1 Layer 3 (stereo, 48000 Hz)"
-#		metaDataList << "/mnt/Angelix/MotionPictures/Movies/Goya's Ghosts (1 of 2).avi: RIFF (little-endian) data, AVI, 560 x 304, 25.00 fps, video: XviD, audio: Dolby AC3 (6 channels, 48000 Hz)"
-
-		media = fileList[10]
-
+		media = fileList[20]
 #		fileList.each do |media|
 			#metaDataList[media] = `file "#{media}"`
-			metaDataList[media] = `mplayer -identify -frames 0 "#{media}" | grep ID`
-
-			puts metaDataList[media]
+			rawData = `mplayer -identify -frames 0 "#{media}" 2> /dev/null | grep ID`
+			parseMetaData(rawData)
 #		end
 
-		return metaDataList
+		#return metaDataList
 	end
 
 
-	# Returns a hah list of MediaData instances, keyed on the file name
-	def parseRawMetaData(rawDataList)
-		mediaDataList = Hash.new
+	### ID_VIDEO_FORMAT
+	#	0x10000001 = MPEG1
+	#	0x10000002 = MPEG2
+	#	0x10000004 = MPEG4
 
-		rawDataList.each do |rawData|
-			fileName      = "1984.avi"
-			dataType      = "RIFF (little-endian) data"
-			container     = "AVI"
-			resolution    = "512 x 384"
-			fps           = "29.97"
-			videoFormat   = "DivX 5"
-			audioFormat   = "MPEG-1 Layer 3"
-			audioSampling = "stereo, 48000 Hz"
+	# Returns an instance of MetaData class, filled with values
+	def parseMetaData(rawData)
+		mdInstance = MetaData.new
 
-			mdInstance = MetaData.new
-			mdInstance.fileName      = fileName
-			mdInstance.dataType      = dataType
-			mdInstance.container     = container
-			mdInstance.resolution    = resolution
-			mdInstance.fps			 = fps
-			mdInstance.videoFormat   = videoFormat
-			mdInstance.audioFormat   = audioFormat
-			mdInstance.audioSampling = audioSampling
+		rawData.each do |data|
+			key, value = data.split("=")
+			if (key.nil? || value.nil?)
+				next
+			end
 
-			mediaDataList[fileName] = mdInstance
+			key.strip!
+			value.strip!
+
+			puts "#{key}     #{value}"
+
+			case key
+				when "ID_FILENAME"     then mdInstance.fileName    = File.basename(value); mdInstance.path = value; mdInstance.container = parseContainer(value)
+				when "ID_LENGTH"       then mdInstance.runtime     = value
+
+				when "ID_VIDEO_WIDTH"  then mdInstance.width       = value
+				when "ID_VIDEO_HEIGHT" then mdInstance.height      = value
+				when "ID_VIDEO_FPS"    then mdInstance.fps         = value
+				when "ID_VIDEO_FORMAT" then mdInstance.videoFormat = parseVideoFormat(value)
+			end
+
 		end
 
-		return mediaDataList
+		return mdInstance
+	end
+
+	def parseVideoFormat(videoFormat)
+		case videoFormat
+			when "0x10000001" then return "MPEG-1"
+			when "0x10000002" then return "MPEG-2"
+			when "0x10000004" then return "MPEG-4"
+		end
+
+		return videoFormat
+	end
+
+	def parseContainer(fileName)
+		fileExtension = File.extname(fileName)
+		return fileExtension.gsub(/^\./, '').upcase
 	end
 end
 
@@ -137,11 +156,13 @@ end
 extracter = Extracter.new
 
 #fileList = extracter.getFileList("/home/jonix/Angelix/MotionPictures/Videos")
-fileList = extracter.getFileList("../../Angelix/MotionPictures/Videos/")
+fileList = extracter.getFileList("../../Angelix/MotionPictures/Movies/")
 
 rawList  = extracter.getMetaData(fileList)
 
-p rawList
+#p rawList
+
+puts rawList.to_s
 
 #metadataInstanceList = extracter.parseRawMetaData(rawList)
 
